@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Target, Shield, Leaf, Monitor, Users } from 'lucide-react';
 import BubbleBackground from '../components/BubbleBackground';
 import Footer from '../components/Footer';
@@ -337,7 +337,10 @@ const AboutPage = () => {
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling.style.display = 'flex';
+                        const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (nextElement) {
+                          nextElement.style.display = 'flex';
+                        }
                       }}
                     />
                     <div className="w-full h-full bg-gradient-to-br from-[#1565c0] to-[#42a5f5] flex items-center justify-center" style={{display: 'none'}}>

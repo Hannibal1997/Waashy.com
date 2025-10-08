@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { MapPin, Target, Car, Shirt, Building2 } from 'lucide-react';
+import { MapPin, Target, Car, Shirt, Building2, Loader2 } from 'lucide-react';
 import BubbleBackground from '../components/BubbleBackground';
+import { useLocation } from '../contexts/LocationContext';
 
 interface HomePageProps {
   onNavigate: (page: string) => void;
@@ -8,15 +9,81 @@ interface HomePageProps {
 
 export default function HomePage({ onNavigate }: HomePageProps) {
   const [searchLocation, setSearchLocation] = useState('');
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const { setSelectedLocation } = useLocation();
 
   const handleLocationSearch = () => {
     if (searchLocation.trim()) {
+      setSelectedLocation(searchLocation);
       onNavigate('services');
     }
   };
 
   const handleUseMyLocation = () => {
-    onNavigate('services');
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation stöds inte av din webbläsare');
+      return;
+    }
+
+    setIsGettingLocation(true);
+    setLocationError('');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        // Use reverse geocoding to get address from coordinates
+        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=sv`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.city && data.localityInfo?.administrative?.[0]?.name) {
+              const locationName = `${data.localityInfo.administrative[0].name}, ${data.city}`;
+              setSearchLocation(locationName);
+              setSelectedLocation(locationName);
+              setIsGettingLocation(false);
+              // Navigate to services with the location
+              onNavigate('services');
+            } else {
+              const coordinateLocation = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+              setSearchLocation(coordinateLocation);
+              setSelectedLocation(coordinateLocation);
+              setIsGettingLocation(false);
+              onNavigate('services');
+            }
+          })
+          .catch(() => {
+            // Fallback to coordinates if reverse geocoding fails
+            const coordinateLocation = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+            setSearchLocation(coordinateLocation);
+            setSelectedLocation(coordinateLocation);
+            setIsGettingLocation(false);
+            onNavigate('services');
+          });
+      },
+      (error) => {
+        setIsGettingLocation(false);
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            setLocationError('Platsåtkomst nekad. Tillåt platsåtkomst för att använda denna funktion.');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            setLocationError('Din plats kunde inte bestämmas.');
+            break;
+          case error.TIMEOUT:
+            setLocationError('Tidsgräns för platsbestämning överskreds.');
+            break;
+          default:
+            setLocationError('Ett okänt fel uppstod vid platsbestämning.');
+            break;
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000 // 5 minutes
+      }
+    );
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -58,12 +125,23 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 </div>
                 <button 
                   onClick={handleUseMyLocation}
-                  className="bg-cyan-500 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl hover:bg-cyan-600 transition-colors flex items-center justify-center space-x-2 font-medium text-sm sm:text-base"
+                  disabled={isGettingLocation}
+                  className="bg-cyan-500 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl hover:bg-cyan-600 transition-colors flex items-center justify-center space-x-2 font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Target className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span>Använd min plats</span>
+                  {isGettingLocation ? (
+                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                  ) : (
+                    <Target className="h-4 w-4 sm:h-5 sm:w-5" />
+                  )}
+                  <span>{isGettingLocation ? 'Hämtar plats...' : 'Använd min plats'}</span>
                 </button>
               </div>
+              
+              {locationError && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm">{locationError}</p>
+                </div>
+              )}
               
               {searchLocation.trim() && (
                 <button

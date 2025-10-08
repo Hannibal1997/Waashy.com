@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Header from './components/Header';
 import HomePage from './pages/HomePage';
 import AboutPage from './pages/AboutPage';
 import ServicesPage from './pages/ServicesPage';
 import ContactPage from './pages/ContactPage';
 import ServiceProviderPage from './pages/ServiceProviderPage';
+import ApplicationPage from './pages/ApplicationPage';
+import { LocationProvider } from './contexts/LocationContext';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -24,20 +26,24 @@ function App() {
       case 'contact':
         return <ContactPage />;
       case 'service-provider':
-        return <ServiceProviderPage />;
+        return <ServiceProviderPage onNavigate={handleNavigate} />;
+      case 'application':
+        return <ApplicationPage onNavigate={handleNavigate} />;
       default:
         return <HomePage onNavigate={handleNavigate} />;
     }
   };
 
   return (
-    <div className="min-h-screen">
-      <Header 
-        currentPage={currentPage}
-        onNavigate={handleNavigate}
-      />
-      {renderPage()}
-    </div>
+    <LocationProvider>
+      <div className="min-h-screen">
+        <Header 
+          currentPage={currentPage}
+          onNavigate={handleNavigate}
+        />
+        {renderPage()}
+      </div>
+    </LocationProvider>
   );
 }
 

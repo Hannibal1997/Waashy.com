@@ -1,13 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Info, Check, Plus, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Info, Plus, ArrowRight } from 'lucide-react';
+import { useLocation } from '../contexts/LocationContext';
 
-interface BookingPageProps {
+interface CartItem {
   service: {
     id: string;
     title: string;
     description: string;
     icon: React.ReactNode;
   };
+  quantity: number;
+  monthlyVolume: number;
+  pricePerUnit: number;
+  totalMonthlyCost: number;
+}
+
+interface BookingPageProps {
+  service?: {
+    id: string;
+    title: string;
+    description: string;
+    icon: React.ReactNode;
+  };
+  cart?: CartItem[];
   onBack: () => void;
 }
 
@@ -27,11 +42,79 @@ interface TimeSlot {
   isAvailable: boolean;
 }
 
-export default function BookingPage({ service, onBack }: BookingPageProps) {
+export default function BookingPage({ service, cart, onBack }: BookingPageProps) {
+  const { selectedLocation } = useLocation();
   const [step, setStep] = useState(1);
   const [professionals, setProfessionals] = useState(1);
   const [materials, setMaterials] = useState<'no' | 'yes'>('no');
   const [specialRequirements, setSpecialRequirements] = useState('');
+  const [currentServiceIndex, setCurrentServiceIndex] = useState(0);
+  const [wantsSubscription, setWantsSubscription] = useState(false);
+  
+  // Determine if we're working with a cart or single service
+  const isCartMode = cart && cart.length > 0;
+  const currentService = isCartMode ? cart[currentServiceIndex]?.service : service;
+  const totalServices = isCartMode ? cart.length : 1;
+  
+  // Validation functions for each step
+  const isStep1Valid = () => {
+    if (isStairCleaning) {
+      return stairHouses > 0 && floorsPerStair > 0;
+    }
+    return monthlyVolume > 0 && professionals > 0;
+  };
+
+  const isStep2Valid = () => {
+    // Step 2 (add-ons) is always valid as it's optional
+    return true;
+  };
+
+  const isStep3Valid = () => {
+    if (!wantsSubscription) return true; // Skip validation if no subscription wanted
+    return selectedDateSlot && selectedTimeSlot;
+  };
+
+  const isStep4Valid = () => {
+    if (wantsSubscription) {
+      return recurringDays.length > 0 && pricePerUnit > 0;
+    } else {
+      return pricePerUnit > 0; // Only price required for one-time services
+    }
+  };
+
+  const isCurrentStepValid = () => {
+    switch (step) {
+      case 1: return isStep1Valid();
+      case 2: return isStep2Valid();
+      case 3: return isStep3Valid();
+      case 4: return isStep4Valid();
+      default: return false;
+    }
+  };
+
+  // Handle step progression with subscription logic
+  const handleNextStep = () => {
+    if (step === 2 && !wantsSubscription) {
+      // Skip step 3 (subscription) if user doesn't want it
+      setStep(4);
+    } else {
+      setStep(step + 1);
+    }
+  };
+
+  // Add navigation functions for cart mode
+  const handleNextService = () => {
+    if (isCartMode && currentServiceIndex < totalServices - 1) {
+      setCurrentServiceIndex(currentServiceIndex + 1);
+      setStep(1); // Reset to first step for next service
+    }
+  };
+
+
+  if (!currentService) {
+    return <div>No service selected</div>;
+  }
+
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
   const [selectedDate] = useState('09 Oct 2025');
   const [selectedDateSlot, setSelectedDateSlot] = useState('Thu 9');
@@ -55,7 +138,7 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
 
   // Get unit and label based on service type
   const getServiceUnit = () => {
-    const serviceTitle = service.title.toLowerCase();
+    const serviceTitle = currentService.title.toLowerCase();
     if (serviceTitle.includes('trapp')) {
       return { unit: 'trappor', label: 'Trappstädning (BRF)', isStairCleaning: true };
     } else if (serviceTitle.includes('golv') || serviceTitle.includes('städ')) {
@@ -89,7 +172,7 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
 
   // Get capacity per hour based on service type
   const getServiceCapacity = () => {
-    const serviceTitle = service.title.toLowerCase();
+    const serviceTitle = currentService.title.toLowerCase();
     if (serviceTitle.includes('trapp')) {
       return 50; // Trappstädning: 50 kvm/timme per städare (BRF standard)
     } else if (serviceTitle.includes('golv')) {
@@ -539,6 +622,7 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
           <div className="mb-4">
             <div className="flex items-center space-x-2 mb-2">
               <h3 className="font-semibold text-gray-900">Några instruktioner eller särskilda krav?</h3>
+              <span className="text-xs text-gray-500">(Valfritt)</span>
             </div>
             <div className="relative">
               <textarea
@@ -555,31 +639,7 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
             </div>
           </div>
 
-          {/* Price Summary */}
-          <div className="bg-blue-50 rounded-lg p-3 text-center">
-            {isStairCleaning ? (
-              <>
-                <div className="text-sm text-gray-600 mb-1">Total kostnad per tillfälle</div>
-                <div className="text-xs text-gray-500 mb-1">BRF timpris: 300 kr/h</div>
-                <div className="text-xs text-gray-500 mb-1">Med {professionals} städare</div>
-                <div className="text-lg font-bold text-blue-600">{totalPris.toLocaleString()} kr</div>
-                <div className="text-xs text-gray-500 mt-1">Exkl. moms</div>
-              </>
-            ) : isLaundry ? (
-              <>
-                <div className="text-sm text-gray-600 mb-1">Total kostnad per vecka</div>
-                <div className="text-xs text-gray-500 mb-1">Baserat på {calculatedWeight} kg</div>
-                <div className="text-xs text-gray-500 mb-1">Pris per kg: {pricePerUnit} kr</div>
-                <div className="text-lg font-bold text-blue-600">{totalPris.toLocaleString()} kr</div>
-              </>
-            ) : (
-              <>
-                <div className="text-sm text-gray-600 mb-1">Total kostnad per gång</div>
-                <div className="text-xs text-gray-500 mb-1">Med {professionals} städare</div>
-                <div className="text-lg font-bold text-blue-600">{totalPris.toLocaleString()} kr</div>
-              </>
-            )}
-          </div>
+
         </>
       );
     }
@@ -645,28 +705,88 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
     if (step === 3) {
       return (
         <>
-          {/* Subscription Section */}
-          <div className="bg-blue-50 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Prenumerera & Spara</h3>
-                <div className="flex items-center space-x-2">
-                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                    <svg className="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                  </div>
-                  <span className="text-sm font-medium text-blue-700">Få regelbunden städning 3x/vecka - Spara 25%</span>
-                </div>
-              </div>
-              <button 
-                onClick={() => setStep(4)}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          {/* Subscription Choice */}
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Välj typ av tjänst</h2>
+            <p className="text-gray-600 mb-4">Vill du ha en engångstjänst eller prenumeration?</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <button
+                onClick={() => {
+                  setWantsSubscription(false);
+                  // Automatically proceed to next step after selecting one-time service
+                  setTimeout(() => {
+                    setStep(4);
+                  }, 500);
+                }}
+                className={`p-4 rounded-lg border-2 transition-colors text-left ${
+                  !wantsSubscription
+                    ? 'border-blue-500 bg-blue-50 text-blue-600'
+                    : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                }`}
               >
-                Anpassa Schema
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 text-lg">🔧</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Engångstjänst</h3>
+                    <p className="text-sm text-gray-500">Enstaka städning eller service</p>
+                  </div>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => {
+                  setWantsSubscription(true);
+                  // Automatically proceed to next step after selecting subscription
+                  setTimeout(() => {
+                    setStep(4);
+                  }, 500);
+                }}
+                className={`p-4 rounded-lg border-2 transition-colors text-left ${
+                  wantsSubscription
+                    ? 'border-blue-500 bg-blue-50 text-blue-600'
+                    : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <span className="text-green-600 text-lg">📅</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Prenumeration</h3>
+                    <p className="text-sm text-gray-500">Regelbunden service - Spara 25%</p>
+                  </div>
+                </div>
               </button>
             </div>
           </div>
+
+          {/* Subscription Benefits - Only shown if user wants subscription */}
+          {wantsSubscription && (
+            <div className="bg-blue-50 rounded-lg p-4 mb-6" data-subscription-benefits>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Prenumerera & Spara</h3>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                      <svg className="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium text-blue-700">Få regelbunden städning 3x/vecka - Spara 25%</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setStep(4)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  Anpassa Schema
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* When would you like to start? */}
           <div className="mb-6">
@@ -690,6 +810,9 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
                 </button>
               ))}
             </div>
+            {!selectedDateSlot && (
+              <p className="text-sm text-red-600 mt-2">⚠️ Välj ett startdatum för att fortsätta</p>
+            )}
           </div>
 
           {/* Select a start time for the chosen days */}
@@ -713,6 +836,9 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
                 </button>
               ))}
             </div>
+            {!selectedTimeSlot && (
+              <p className="text-sm text-red-600 mt-2">⚠️ Välj en starttid för att fortsätta</p>
+            )}
           </div>
         </>
       );
@@ -728,7 +854,7 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
                 <span className="text-blue-600 text-lg">📅</span>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">{service.title}</h3>
+                <h3 className="font-semibold text-gray-900">{currentService.title}</h3>
                 <p className="text-sm text-gray-600">Planera din leverans</p>
               </div>
             </div>
@@ -759,31 +885,36 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
             </div>
           </div>
 
-          {/* Recurring Days Selection */}
-          <div className="mb-4">
-            <h3 className="font-semibold text-gray-900 mb-3">Välj veckodagar för återkommande leverans</h3>
-            <div className="flex space-x-2">
-              {['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'].map((day) => (
-                <button
-                  key={day}
-                  onClick={() => {
-                    setRecurringDays(prev => 
-                      prev.includes(day) 
-                        ? prev.filter(d => d !== day)
-                        : [...prev, day]
-                    );
-                  }}
-                  className={`px-3 py-2 rounded-lg border-2 transition-colors text-sm font-medium ${
-                    recurringDays.includes(day)
-                      ? 'border-blue-500 bg-blue-50 text-blue-600'
-                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
-                  }`}
-                >
-                  {day}
-                </button>
-              ))}
+          {/* Recurring Days Selection - Only for subscriptions */}
+          {wantsSubscription && (
+            <div className="mb-4">
+              <h3 className="font-semibold text-gray-900 mb-3">Välj veckodagar för återkommande leverans</h3>
+              <div className="flex space-x-2">
+                {['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'].map((day) => (
+                  <button
+                    key={day}
+                    onClick={() => {
+                      setRecurringDays(prev => 
+                        prev.includes(day) 
+                          ? prev.filter(d => d !== day)
+                          : [...prev, day]
+                      );
+                    }}
+                    className={`px-3 py-2 rounded-lg border-2 transition-colors text-sm font-medium ${
+                      recurringDays.includes(day)
+                        ? 'border-blue-500 bg-blue-50 text-blue-600'
+                        : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                    }`}
+                  >
+                    {day}
+                  </button>
+                ))}
+              </div>
+              {recurringDays.length === 0 && (
+                <p className="text-sm text-red-600 mt-2">⚠️ Välj minst en veckodag för återkommande leverans</p>
+              )}
             </div>
-          </div>
+          )}
 
           {/* Bidding Section */}
           <div className="mb-4">
@@ -826,6 +957,9 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
                 💡 Tips: Lägre pris = högre chans att få uppdraget
               </div>
             </div>
+            {pricePerUnit <= 0 && (
+              <p className="text-sm text-red-600 mt-2">⚠️ Justera priset för att fortsätta</p>
+            )}
           </div>
 
           {/* Important Information */}
@@ -898,30 +1032,38 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
                 <ArrowLeft className="h-5 w-5 text-gray-600" />
               </button>
               <div>
-                <div className="text-sm text-gray-500">Step {step} of 4</div>
+                <div className="text-sm text-gray-500">
+                  {isCartMode ? `Tjänst ${currentServiceIndex + 1} av ${totalServices} - Steg ${step} av 4` : `Steg ${step} av 4`}
+                </div>
                 <h1 className="text-xl font-bold text-gray-900">
-                  {step === 1 ? service.title : step === 2 ? 'Popular Add-ons' : step === 3 ? 'Schedule' : step === 4 ? 'Skapa schema' : service.title}
+                  {step === 1 ? currentService.title : step === 2 ? 'Popular Add-ons' : step === 3 ? 'Schedule' : step === 4 ? 'Skapa schema' : currentService.title}
                 </h1>
               </div>
             </div>
 
             {renderStepContent()}
 
-            {/* Next Button */}
-            <button
-              onClick={() => {
-                if (step === 3) {
-                  setShowConfirmation(true);
-                } else if (step === 4) {
-                  setShowConfirmation(true);
-                } else {
-                  setStep(step + 1);
-                }
-              }}
-              className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-            >
-              {step === 3 ? 'Skicka förfrågan' : step === 4 ? 'Skicka förfrågan' : 'Next'}
-            </button>
+            {/* Validation Messages */}
+            {!isCurrentStepValid() && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center">
+                    <span className="text-red-600 text-xs font-bold">!</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-red-800">Obligatoriska fält saknas</p>
+                    <p className="text-xs text-red-700 mt-1">
+                      {step === 1 && !isStep1Valid() ? "Fyll i alla obligatoriska fält ovan för att fortsätta" :
+                       step === 2 && !isStep2Valid() ? "Välj tilläggstjänster (valfritt)" :
+                       step === 3 && !isStep3Valid() ? "Välj datum och tid för att fortsätta" :
+                       step === 4 && !isStep4Valid() ? "Välj återkommande dagar och justera pris för att fortsätta" :
+                       ""}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
 
           {/* Right Panel - Booking & Payment Summary */}
@@ -932,11 +1074,11 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Address:</span>
-                  <span className="text-gray-900">673C+W8V - Dubai - United Arab Emirates</span>
+                  <span className="text-gray-900">{selectedLocation}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Service:</span>
-                  <span className="text-gray-900">{service.title}</span>
+                  <span className="text-gray-900">{currentService.title}</span>
                 </div>
                 {isStairCleaning && (
                   <div className="flex justify-between">
@@ -960,10 +1102,12 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
                   <span className="text-gray-600">Beräknad tid:</span>
                   <span className="text-gray-900">{rekommenderadeTimmar} timmar</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Date & Start Time:</span>
-                  <span className="text-gray-900">{selectedDate}, {selectedTimeSlot}</span>
-                </div>
+                {step >= 3 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Date & Start Time:</span>
+                    <span className="text-gray-900">{selectedDate}, {selectedTimeSlot}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-600">Antal städare:</span>
                   <span className="text-gray-900">{professionals}</span>
@@ -972,7 +1116,7 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
                   <span className="text-gray-600">Städmaterial:</span>
                   <span className="text-gray-900">{materials === 'yes' ? 'Ja' : 'Nej'}</span>
                 </div>
-                {selectedAddons.length > 0 && (
+                {step >= 2 && selectedAddons.length > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Add-ons:</span>
                     <span className="text-gray-900">
@@ -1058,7 +1202,7 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
                     </div>
                   </>
                 )}
-                {selectedAddons.length > 0 && (
+                {step >= 2 && selectedAddons.length > 0 && (
                   <div className="flex justify-between">
                     <span className="text-gray-600">Tilläggstjänster:</span>
                     <span className="text-gray-900">{addonPrice.toLocaleString()} kr</span>
@@ -1073,28 +1217,116 @@ export default function BookingPage({ service, onBack }: BookingPageProps) {
               </div>
             </div>
 
-            {/* Service Features */}
+            {/* Next Button */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4">What's Included</h3>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Check className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-gray-600">Professional cleaning team</span>
+              {isCartMode && currentServiceIndex < totalServices - 1 ? (
+                <div className="space-y-3">
+                  {step < 4 ? (
+                    <button
+                      onClick={handleNextStep}
+                      disabled={!isCurrentStepValid()}
+                      className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors ${
+                        isCurrentStepValid()
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      {isCurrentStepValid() 
+                        ? `Nästa steg för ${currentService.title}` 
+                        : 'Fyll i alla fält för att fortsätta'
+                      }
+                    </button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                            <span className="text-green-600 text-sm font-bold">✓</span>
+                          </div>
+                          <span className="text-sm font-medium text-green-800">Tjänst konfigurerad!</span>
+                        </div>
+                        <p className="text-xs text-green-700">
+                          Denna tjänst är klar. Gå vidare till nästa tjänst med navigationsknapparna ovan.
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleNextService}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                      >
+                        Gå vidare till nästa tjänst →
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Check className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-gray-600">High-quality cleaning supplies</span>
+              ) : isCartMode && currentServiceIndex === totalServices - 1 ? (
+                <div className="space-y-3">
+                  {step < 4 ? (
+                    <button
+                      onClick={handleNextStep}
+                      disabled={!isCurrentStepValid()}
+                      className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors ${
+                        isCurrentStepValid()
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      {isCurrentStepValid() 
+                        ? `Nästa steg för ${currentService.title}` 
+                        : 'Fyll i alla fält för att fortsätta'
+                      }
+                    </button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                            <span className="text-green-600 text-sm font-bold">🎉</span>
+                          </div>
+                          <span className="text-sm font-medium text-green-800">Alla tjänster konfigurerade!</span>
+                        </div>
+                        <p className="text-xs text-green-700">
+                          Du har nu konfigurerat alla {totalServices} tjänster. Klicka nedan för att skicka in hela förfrågan.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowConfirmation(true)}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                      >
+                        Skicka alla tjänster ({totalServices} st) 🚀
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Check className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-gray-600">100% satisfaction guarantee</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Check className="h-4 w-4 text-green-500" />
-                  <span className="text-sm text-gray-600">Insured and bonded professionals</span>
-                </div>
-              </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (step === 3) {
+                      setShowConfirmation(true);
+                    } else if (step === 4) {
+                      setShowConfirmation(true);
+                    } else {
+                      handleNextStep();
+                    }
+                  }}
+                  disabled={!isCurrentStepValid()}
+                  className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors ${
+                    isCurrentStepValid()
+                      ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  {!isCurrentStepValid() 
+                    ? 'Fyll i alla fält för att fortsätta'
+                    : step === 3 
+                      ? 'Skicka förfrågan' 
+                      : step === 4 
+                        ? 'Skicka förfrågan' 
+                        : 'Nästa'
+                  }
+                </button>
+              )}
             </div>
+
           </div>
         </div>
       </div>
