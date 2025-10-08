@@ -1,5 +1,4 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
 
 interface HeaderProps {
   currentPage: string;
@@ -11,6 +10,7 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
     { id: 'home', label: 'Hem' },
     { id: 'about', label: 'Om oss' },
     { id: 'services', label: 'Tjänster' },
+    { id: 'service-provider', label: 'Bli tjänsteleverantör' },
     { id: 'contact', label: 'Kontakt' }
   ];
 
@@ -22,8 +22,12 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
             className="flex items-center space-x-2 cursor-pointer"
             onClick={() => onNavigate('home')}
           >
-            <div className="bg-blue-600 p-1.5 lg:p-2 rounded-lg">
-              <Sparkles className="h-4 w-4 lg:h-5 lg:w-5 text-white" />
+            <div className="flex items-center">
+              <img 
+                src="/Waashy.svg" 
+                alt="Waashy Logo" 
+                className="h-8 w-8 lg:h-10 lg:w-10"
+              />
             </div>
             <div>
               <h1 className="text-lg lg:text-xl font-bold text-gray-900">Waashy</h1>

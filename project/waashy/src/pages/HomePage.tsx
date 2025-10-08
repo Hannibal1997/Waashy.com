@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin, Target, Car, Shirt, Building2 } from 'lucide-react';
+import BubbleBackground from '../components/BubbleBackground';
 
 interface HomePageProps {
   onNavigate: (page: string) => void;
@@ -25,10 +26,11 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50">
+    <div className="bg-gradient-to-br from-blue-50 to-cyan-50">
       {/* Hero Section */}
-      <section className="relative py-8 sm:py-12 lg:py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <section className="relative min-h-screen flex items-center justify-center py-8 sm:py-12 lg:py-20">
+        <BubbleBackground bubbleCount={6} />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4">
             #1 Plattform för alla företagstjänster
           </h1>
