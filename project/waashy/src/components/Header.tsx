@@ -1,11 +1,14 @@
 import React from 'react';
+import { ShoppingCart } from 'lucide-react';
 
 interface HeaderProps {
   currentPage: string;
   onNavigate: (page: string) => void;
+  cart?: any[];
+  onShowCart?: () => void;
 }
 
-export default function Header({ currentPage, onNavigate }: HeaderProps) {
+export default function Header({ currentPage, onNavigate, cart = [], onShowCart }: HeaderProps) {
   const navItems = [
     { id: 'home', label: 'Hem' },
     { id: 'about', label: 'Om oss' },
@@ -35,21 +38,38 @@ export default function Header({ currentPage, onNavigate }: HeaderProps) {
             </div>
           </div>
           
-          <nav className="hidden md:flex items-center space-x-4 lg:space-x-6">
-            {navItems.map((item) => (
+          <div className="flex items-center space-x-4">
+            <nav className="hidden md:flex items-center space-x-4 lg:space-x-6">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => onNavigate(item.id)}
+                  className={`text-xs lg:text-sm font-medium transition-colors ${
+                    currentPage === item.id
+                      ? 'text-blue-600 border-b-2 border-blue-600 pb-1'
+                      : 'text-gray-600 hover:text-blue-600'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+            
+            {/* Cart Button */}
+            {onShowCart && (
               <button
-                key={item.id}
-                onClick={() => onNavigate(item.id)}
-                className={`text-xs lg:text-sm font-medium transition-colors ${
-                  currentPage === item.id
-                    ? 'text-blue-600 border-b-2 border-blue-600 pb-1'
-                    : 'text-gray-600 hover:text-blue-600'
-                }`}
+                onClick={onShowCart}
+                className="relative p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                {item.label}
+                <ShoppingCart className="h-5 w-5" />
+                {cart.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-white text-blue-600 text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                    {cart.length}
+                  </span>
+                )}
               </button>
-            ))}
-          </nav>
+            )}
+          </div>
         </div>
       </div>
     </header>

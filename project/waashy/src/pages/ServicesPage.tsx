@@ -35,9 +35,14 @@ interface CartItem {
   totalMonthlyCost: number;
 }
 
-export default function ServicesPage() {
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [showCart, setShowCart] = useState(false);
+interface ServicesPageProps {
+  cart: CartItem[];
+  setCart: (cart: CartItem[]) => void;
+  showCart: boolean;
+  setShowCart: (show: boolean) => void;
+}
+
+export default function ServicesPage({ cart, setCart, showCart, setShowCart }: ServicesPageProps) {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [showBooking, setShowBooking] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Service | null>(null);
@@ -69,33 +74,6 @@ export default function ServicesPage() {
           subcategory: 'moving'
         },
         {
-          id: 'stair-cleaning',
-          title: 'Trapphusstädning',
-          description: 'Städning av trappor och trapphus',
-          icon: <Home className="h-6 w-6" />,
-          examples: ['Trappor', 'Trapphus', 'Lobby'],
-          category: 'cleaning',
-          subcategory: 'stairs'
-        },
-        {
-          id: 'floor-care',
-          title: 'Golvvård',
-          description: 'Professionell golvvård och underhåll',
-          icon: <Home className="h-6 w-6" />,
-          examples: ['Parkett', 'Laminat', 'Linoleum'],
-          category: 'cleaning',
-          subcategory: 'flooring'
-        },
-        {
-          id: 'window-cleaning',
-          title: 'Fönsterputs',
-          description: 'Fönsterputsning och glasrengöring',
-          icon: <Wind className="h-6 w-6" />,
-          examples: ['Fönster', 'Glasdörrar', 'Skyltfönster'],
-          category: 'cleaning',
-          subcategory: 'windows'
-        },
-        {
           id: 'commercial-kitchen',
           title: 'Storkök',
           description: 'Specialiserad städning av storkök och matsalar',
@@ -103,7 +81,25 @@ export default function ServicesPage() {
           examples: ['Storkök', 'Matsalar', 'Restauranger'],
           category: 'cleaning',
           subcategory: 'kitchen'
-        }
+        },
+        {
+          id: 'construction-cleaning',
+          title: 'Byggstädning',
+          description: 'Städning efter byggarbeten och renovering',
+          icon: <Wrench className="h-6 w-6" />,
+          examples: ['Byggstäd', 'Renovering', 'Nybyggnation', 'Flyttstäd'],
+          category: 'cleaning',
+          subcategory: 'construction'
+        },
+        {
+          id: 'upholstery-cleaning',
+          title: 'Möbelrengöring',
+          description: 'Djupkemrengöring av möbler och textiler',
+          icon: <Sofa className="h-6 w-6" />,
+          examples: ['Soffor', 'Stolar', 'Kuddar', 'Textilier'],
+          category: 'cleaning',
+          subcategory: 'upholstery'
+        },
       ]
     },
     {
@@ -119,15 +115,6 @@ export default function ServicesPage() {
           examples: ['Overaller', 'Byxor', 'Arbetskläder', 'Uniformer'],
           category: 'laundry',
           subcategory: 'workwear'
-        },
-        {
-          id: 'safety-clothing-laundry',
-          title: 'Skyddskläder',
-          description: 'Tvätt av reflexvästar, skyddsoveraller och skyddsutrustning',
-          icon: <Shield className="h-6 w-6" />,
-          examples: ['Reflexvästar', 'Skyddsoveraller', 'Skyddsutrustning', 'Säkerhetskläder'],
-          category: 'laundry',
-          subcategory: 'safety'
         },
         {
           id: 'tablecloths-laundry',
@@ -191,7 +178,7 @@ export default function ServicesPage() {
           examples: ['Vårduniformer', 'Skrubbar', 'Sjukhuskläder', 'Vårdkläder'],
           category: 'laundry',
           subcategory: 'medical'
-        }
+        },
       ]
     },
     {
@@ -270,51 +257,6 @@ export default function ServicesPage() {
           examples: ['Lager', 'Distributionscenter', 'Leveranscentraler', 'Magasin'],
           category: 'maintenance-services',
           subcategory: 'warehouse'
-        },
-        {
-          id: 'construction-cleaning',
-          title: 'Byggstädning',
-          description: 'Städning efter byggarbeten och renovering',
-          icon: <Wrench className="h-6 w-6" />,
-          examples: ['Byggstäd', 'Renovering', 'Nybyggnation', 'Flyttstäd'],
-          category: 'maintenance-services',
-          subcategory: 'construction'
-        },
-        {
-          id: 'carpet-cleaning',
-          title: 'Mattstädning',
-          description: 'Djupkemrengöring av mattor och heltäckningsmattor',
-          icon: <Sofa className="h-6 w-6" />,
-          examples: ['Heltäckningsmattor', 'Entrémattor', 'Industrimattor', 'Gummimattor'],
-          category: 'maintenance-services',
-          subcategory: 'carpets'
-        },
-        {
-          id: 'upholstery-cleaning',
-          title: 'Möbelrengöring',
-          description: 'Djupkemrengöring av möbler och textiler',
-          icon: <Sofa className="h-6 w-6" />,
-          examples: ['Soffor', 'Stolar', 'Kuddar', 'Textilier'],
-          category: 'maintenance-services',
-          subcategory: 'upholstery'
-        },
-        {
-          id: 'workwear-rental',
-          title: 'Arbetskläder & Hyra',
-          description: 'Uthyrning och underhåll av arbetskläder',
-          icon: <Shirt className="h-6 w-6" />,
-          examples: ['Arbetskläder', 'Skyddskläder', 'Tvätt', 'Reparation'],
-          category: 'maintenance-services',
-          subcategory: 'workwear'
-        },
-        {
-          id: 'mat-service',
-          title: 'Mattservice',
-          description: 'Utlägg och rotation av entrémattor',
-          icon: <Home className="h-6 w-6" />,
-          examples: ['Entrémattor', 'Industrimattor', 'Gummimattor', 'Rotation'],
-          category: 'maintenance-services',
-          subcategory: 'mats'
         },
         {
           id: 'sanitary-services',
@@ -449,34 +391,41 @@ export default function ServicesPage() {
           examples: ['Catering'],
           category: 'business-services',
           subcategory: 'catering'
+        },
+        {
+          id: 'workwear-rental',
+          title: 'Arbetskläder & Hyra',
+          description: 'Uthyrning och underhåll av arbetskläder',
+          icon: <Shirt className="h-6 w-6" />,
+          examples: ['Arbetskläder', 'Skyddskläder', 'Tvätt', 'Reparation'],
+          category: 'business-services',
+          subcategory: 'workwear'
         }
       ]
     }
   ];
 
   const addToCart = (service: Service) => {
-    setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.service.id === service.id);
-      if (existingItem) {
-        return prevCart.map(item =>
-          item.service.id === service.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      } else {
-        return [...prevCart, { 
-          service: service, 
-          quantity: 1,
-          monthlyVolume: 100, // Default values for booking process
-          pricePerUnit: 25,   // Will be calculated based on user choices
-          totalMonthlyCost: 0 // Will be calculated in booking process
-        }];
-      }
-    });
+    const existingItem = cart.find(item => item.service.id === service.id);
+    if (existingItem) {
+      setCart(cart.map(item =>
+        item.service.id === service.id
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      ));
+    } else {
+      setCart([...cart, { 
+        service: service, 
+        quantity: 1,
+        monthlyVolume: 100, // Default values for booking process
+        pricePerUnit: 25,   // Will be calculated based on user choices
+        totalMonthlyCost: 0 // Will be calculated in booking process
+      }]);
+    }
   };
 
   const removeFromCart = (serviceId: string) => {
-    setCart(prevCart => prevCart.filter(item => item.service.id !== serviceId));
+    setCart(cart.filter(item => item.service.id !== serviceId));
   };
 
 
@@ -503,35 +452,6 @@ export default function ServicesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => window.history.back()}
-                className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-                Services
-              </h1>
-            </div>
-            <button
-              onClick={() => setShowCart(true)}
-              className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ShoppingCart className="h-6 w-6" />
-              {cart.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {cart.length}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Subcategories View */}
       {showSubcategories && selectedCategory && (

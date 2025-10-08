@@ -8,8 +8,18 @@ import ServiceProviderPage from './pages/ServiceProviderPage';
 import ApplicationPage from './pages/ApplicationPage';
 import { LocationProvider } from './contexts/LocationContext';
 
+interface CartItem {
+  service: any;
+  quantity: number;
+  monthlyVolume: number;
+  pricePerUnit: number;
+  totalMonthlyCost: number;
+}
+
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [showCart, setShowCart] = useState(false);
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
@@ -22,7 +32,7 @@ function App() {
       case 'about':
         return <AboutPage />;
       case 'services':
-        return <ServicesPage />;
+        return <ServicesPage cart={cart} setCart={setCart} showCart={showCart} setShowCart={setShowCart} />;
       case 'contact':
         return <ContactPage />;
       case 'service-provider':
@@ -40,6 +50,8 @@ function App() {
         <Header 
           currentPage={currentPage}
           onNavigate={handleNavigate}
+          cart={cart}
+          onShowCart={currentPage === 'services' ? () => setShowCart(true) : undefined}
         />
         {renderPage()}
       </div>
