@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, LogIn } from 'lucide-react';
 
 interface HeaderProps {
   currentPage: string;
@@ -54,6 +54,18 @@ export default function Header({ currentPage, onNavigate, cart = [], onShowCart 
                 </button>
               ))}
             </nav>
+            
+            {/* Login Button */}
+            <button
+              onClick={() => {
+                // TODO: Implement login functionality
+                console.log('Login clicked');
+              }}
+              className="flex items-center space-x-2 px-3 py-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <LogIn className="h-4 w-4" />
+              <span className="text-sm font-medium hidden sm:inline">Logga in</span>
+            </button>
             
             {/* Cart Button */}
             {onShowCart && (

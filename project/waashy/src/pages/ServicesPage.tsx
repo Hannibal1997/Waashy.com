@@ -40,6 +40,7 @@ interface ServicesPageProps {
   setCart: (cart: CartItem[]) => void;
   showCart: boolean;
   setShowCart: (show: boolean) => void;
+  onNavigate?: (page: string) => void;
 }
 
 export default function ServicesPage({ cart, setCart, showCart, setShowCart }: ServicesPageProps) {
@@ -48,6 +49,7 @@ export default function ServicesPage({ cart, setCart, showCart, setShowCart }: S
   const [selectedCategory, setSelectedCategory] = useState<Service | null>(null);
   const [showSubcategories, setShowSubcategories] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [isSubscription, setIsSubscription] = useState(false); // Default to one-time service
 
   const serviceCategories: ServiceCategory[] = [
     {
@@ -443,11 +445,11 @@ export default function ServicesPage({ cart, setCart, showCart, setShowCart }: S
 
 
   if (showBooking && selectedService) {
-    return <BookingPage service={selectedService} onBack={() => setShowBooking(false)} />;
+    return <BookingPage service={selectedService} onBack={() => setShowBooking(false)} isSubscription={isSubscription} />;
   }
 
   if (showBooking && cart.length > 0) {
-    return <BookingPage cart={cart} onBack={() => setShowBooking(false)} />;
+    return <BookingPage cart={cart} onBack={() => setShowBooking(false)} isSubscription={isSubscription} />;
   }
 
   return (
@@ -513,9 +515,33 @@ export default function ServicesPage({ cart, setCart, showCart, setShowCart }: S
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
               Leave your to-do list to us!
             </h2>
-            <p className="text-base sm:text-lg text-gray-600">
+            <p className="text-base sm:text-lg text-gray-600 mb-6">
               Välj de tjänster du behöver och få en skräddarsydd offert
             </p>
+            
+            {/* Toggle Switch */}
+            <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6 mb-8">
+              <div className="flex items-center space-x-3">
+                <span className={`text-sm font-medium ${!isSubscription ? 'text-blue-600' : 'text-gray-500'}`}>
+                  Engång
+                </span>
+                <button
+                  onClick={() => setIsSubscription(!isSubscription)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    isSubscription ? 'bg-green-600' : 'bg-blue-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      isSubscription ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <span className={`text-sm font-medium ${isSubscription ? 'text-green-600' : 'text-gray-500'}`}>
+                  Prenumeration
+                </span>
+              </div>
+            </div>
           </div>
         
         {/* Service Categories */}
@@ -575,9 +601,13 @@ export default function ServicesPage({ cart, setCart, showCart, setShowCart }: S
                           </h4>
                           <button
                             onClick={() => addToCart(service)}
-                            className="w-full bg-blue-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                            className={`w-full text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                              isSubscription 
+                                ? 'bg-green-600 hover:bg-green-700' 
+                                : 'bg-blue-600 hover:bg-blue-700'
+                            }`}
                           >
-                            Lägg till
+                            {isSubscription ? 'Prenumerera' : 'Lägg till'}
                           </button>
                         </div>
                       </div>
@@ -611,9 +641,13 @@ export default function ServicesPage({ cart, setCart, showCart, setShowCart }: S
                           </h4>
                           <button
                             onClick={() => addToCart(service)}
-                            className="w-full bg-blue-600 text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                            className={`w-full text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                              isSubscription 
+                                ? 'bg-green-600 hover:bg-green-700' 
+                                : 'bg-blue-600 hover:bg-blue-700'
+                            }`}
                           >
-                            Lägg till
+                            {isSubscription ? 'Prenumerera' : 'Lägg till'}
                           </button>
                         </div>
                       </div>
@@ -633,7 +667,7 @@ export default function ServicesPage({ cart, setCart, showCart, setShowCart }: S
           <div className="bg-white rounded-xl sm:rounded-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
               <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                Shopping Cart
+                {isSubscription ? 'Prenumerationskorg' : 'Shopping Cart'}
               </h2>
               <button
                 onClick={() => setShowCart(false)}
@@ -647,7 +681,7 @@ export default function ServicesPage({ cart, setCart, showCart, setShowCart }: S
               {cart.length === 0 ? (
                 <div className="text-center py-8">
                   <ShoppingCart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">Your cart is empty</p>
+                  <p className="text-gray-500">{isSubscription ? 'Din prenumerationskorg är tom' : 'Your cart is empty'}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -681,11 +715,16 @@ export default function ServicesPage({ cart, setCart, showCart, setShowCart }: S
               <div className="border-t border-gray-200 p-4 sm:p-6">
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Tjänster i kundvagnen:</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      {isSubscription ? 'Prenumerationer i korgen:' : 'Tjänster i kundvagnen:'}
+                    </span>
                     <span className="text-sm text-gray-500">{cart.length} tjänster</span>
                   </div>
                   <p className="text-xs text-gray-500">
-                    Priser beräknas baserat på dina val i bokningsprocessen
+                    {isSubscription 
+                      ? 'Prenumerationspriser beräknas baserat på dina val' 
+                      : 'Priser beräknas baserat på dina val i bokningsprocessen'
+                    }
                   </p>
                 </div>
                 <button 
@@ -693,9 +732,16 @@ export default function ServicesPage({ cart, setCart, showCart, setShowCart }: S
                     setShowCart(false);
                     setShowBooking(true);
                   }}
-                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  className={`w-full text-white py-3 px-4 rounded-lg font-medium transition-colors ${
+                    isSubscription 
+                      ? 'bg-green-600 hover:bg-green-700' 
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
-                  Fortsätt till bokning ({cart.length} tjänster)
+                  {isSubscription 
+                    ? `Fortsätt till prenumeration (${cart.length} tjänster)` 
+                    : `Fortsätt till bokning (${cart.length} tjänster)`
+                  }
                 </button>
               </div>
             )}
