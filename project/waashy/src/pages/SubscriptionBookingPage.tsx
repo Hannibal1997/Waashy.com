@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Info, Plus, ArrowRight, X } from 'lucide-react';
+import { ArrowLeft, Info, X } from 'lucide-react';
 import { useLocation } from '../contexts/LocationContext';
 
 interface CartItem {
@@ -15,7 +15,7 @@ interface CartItem {
   totalMonthlyCost: number;
 }
 
-interface BookingPageProps {
+interface SubscriptionBookingPageProps {
   service?: {
     id: string;
     title: string;
@@ -24,7 +24,6 @@ interface BookingPageProps {
   };
   cart?: CartItem[];
   onBack: () => void;
-  isSubscription?: boolean;
 }
 
 interface Addon {
@@ -36,16 +35,13 @@ interface Addon {
   image: string;
 }
 
-
-
-export default function BookingPage({ service, cart, onBack, isSubscription }: BookingPageProps) {
+export default function SubscriptionBookingPage({ service, cart, onBack }: SubscriptionBookingPageProps) {
   const { selectedLocation } = useLocation();
   const [step, setStep] = useState(1);
   const [professionals, setProfessionals] = useState(1);
   const [materials, setMaterials] = useState<'no' | 'yes'>('no');
   const [specialRequirements, setSpecialRequirements] = useState('');
   const [currentServiceIndex, setCurrentServiceIndex] = useState(0);
-  const [wantsSubscription, setWantsSubscription] = useState(isSubscription || false);
   
   // Determine if we're working with a cart or single service
   const isCartMode = cart && cart.length > 0;
@@ -57,19 +53,16 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
     if (isStairCleaning) {
       return stairHouses > 0 && floorsPerStair > 0;
     }
+    if (isOfficeCleaning) {
+      return monthlyVolume > 0; // Office cleaning automatically calculates professionals
+    }
     return monthlyVolume > 0 && professionals > 0;
   };
-
-
-
+  
   const isStep2Valid = () => {
-    if (wantsSubscription) {
-      return recurringDays.length > 0;
-    } else {
-      return true; // No pricing validation needed for one-time services
-    }
+    return recurringDays.length > 0;
   };
-
+  
   const isCurrentStepValid = () => {
     switch (step) {
       case 1: return isStep1Valid();
@@ -77,17 +70,16 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
       default: return false;
     }
   };
-
-  // Handle step progression - only 2 steps now
+  
+  // Handle step progression - 2 steps for subscription services
   const handleNextStep = () => {
     if (step === 1) {
-      // Go directly to step 2 (formerly step 4)
       setStep(2);
     } else {
       setStep(step + 1);
     }
   };
-
+  
   // Add navigation functions for cart mode
   const handleNextService = () => {
     if (isCartMode && currentServiceIndex < totalServices - 1) {
@@ -95,19 +87,20 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
       setStep(1); // Reset to first step for next service
     }
   };
-
-
+  
   if (!currentService) {
     return <div>No service selected</div>;
   }
-
-  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
-  const [monthlyVolume, setMonthlyVolume] = useState(100);
-  const [pricePerUnit, setPricePerUnit] = useState(25); // Fast pris per kvm, men kan justeras i Steg 4
   
-  // Step 4 - Schedule state
-  const [startDate, setStartDate] = useState('8 okt');
+  const [selectedAddons] = useState<string[]>([]);
+  const [monthlyVolume, setMonthlyVolume] = useState(100);
+  const [pricePerUnit, setPricePerUnit] = useState(25);
+  
+  // Schedule state
+  const [startDate, setStartDate] = useState('18 okt');
   const [scheduleTime, setScheduleTime] = useState('15:00-17:00');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [recurringDays, setRecurringDays] = useState<string[]>(['Mån', 'Ons', 'Fre']);
   
   // Modal states for date and time pickers
@@ -122,12 +115,14 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
   const [floorsPerStair, setFloorsPerStair] = useState(4);
   const [hasElevator, setHasElevator] = useState(false);
   const [showStairDetails, setShowStairDetails] = useState(false);
-
+  
   // Get unit and label based on service type
   const getServiceUnit = () => {
     const serviceTitle = currentService.title.toLowerCase();
     if (serviceTitle.includes('trapp')) {
       return { unit: 'trappor', label: 'Trappstädning (BRF)', isStairCleaning: true };
+    } else if (serviceTitle.includes('kontor') || serviceTitle.includes('kontorstädning')) {
+      return { unit: 'kvm', label: 'Yta att städa', isOfficeCleaning: true };
     } else if (serviceTitle.includes('golv') || serviceTitle.includes('städ')) {
       return { unit: 'kvm', label: 'Yta att städa' };
     } else if (serviceTitle.includes('tvätt') || serviceTitle.includes('kläder') || serviceTitle.includes('arbetskläder') || serviceTitle.includes('skyddskläder') || serviceTitle.includes('bordsdukar') || serviceTitle.includes('kökshanddukar') || serviceTitle.includes('förkläden') || serviceTitle.includes('mattor') || serviceTitle.includes('servetter') || serviceTitle.includes('sängkläder') || serviceTitle.includes('vårduniformer')) {
@@ -142,21 +137,21 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
       return { unit: 'kvm', label: 'Yta att städa' };
     }
   };
-
+  
   const serviceUnit = getServiceUnit();
-
+  
   // Check if service is laundry-related
   const isLaundryService = () => {
     return serviceUnit.isLaundryService || false;
   };
-
+  
   // Calculate kg based on number of employees for laundry services
   const calculateLaundryWeight = (employees: number) => {
     // Standard: 2-3 kg per employee per week (arbetskläder)
     const kgPerEmployee = 2.5;
     return Math.round(employees * kgPerEmployee);
   };
-
+  
   // Get capacity per hour based on service type
   const getServiceCapacity = () => {
     const serviceTitle = currentService.title.toLowerCase();
@@ -174,7 +169,7 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
       return 50; // Standard kapacitet
     }
   };
-
+  
   // Inefficiency factor based on number of professionals
   const ineffektivitetsFaktor = (n: number) => {
     if (n <= 1) return 1;
@@ -183,7 +178,7 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
     if (n === 4) return 1.3;
     return 1 + (n - 1) * 0.1;
   };
-
+  
   // Price surcharge factor based on number of professionals
   const prisPåslagFaktor = (n: number) => {
     if (n <= 1) return 1.0;
@@ -192,27 +187,34 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
     if (n >= 4) return 1.10;
     return 1.0;
   };
-
+  
   // Advanced calculation function
-  const beräknaStädJobb = ({ kvm, antalStadare, kapacitetPerTimme, prisPerKvm }: { kvm: number; antalStadare: number; kapacitetPerTimme: number; prisPerKvm: number }) => {
+  const beräknaStädJobb = ({ kvm, antalStadare, kapacitetPerTimme, prisPerKvm, isOfficeCleaning = false }: { kvm: number; antalStadare: number; kapacitetPerTimme: number; prisPerKvm: number; isOfficeCleaning?: boolean }) => {
     if (kapacitetPerTimme <= 0 || antalStadare <= 0) return null;
-
     const ineff = ineffektivitetsFaktor(antalStadare);
-    const tid = (kvm / kapacitetPerTimme) / antalStadare * ineff;
+    let tid = (kvm / kapacitetPerTimme) / antalStadare * ineff;
+    
+    // For office cleaning: ensure max 8 hours per shift
+    if (isOfficeCleaning) {
+      const maxHours = 8;
+      // Calculate time per cleaner and cap at 8 hours
+      const timePerCleaner = (kvm / kapacitetPerTimme) / antalStadare;
+      // For office cleaning, show the actual time per cleaner (max 8 hours)
+      tid = Math.min(timePerCleaner, maxHours);
+    }
+    
     const prisUtanPåslag = kvm * prisPerKvm;
     const pris = prisUtanPåslag * prisPåslagFaktor(antalStadare);
-
     return {
       tid: +tid.toFixed(1), // timmar
       pris: +pris.toFixed(2), // SEK
       prisUtanPåslag: +prisUtanPåslag.toFixed(2),
     };
   };
-
+  
   // Stair cleaning calculation function
   const beräknaTrappstädning = ({ antalTrapphus, antalVåningar, antalStadare, harHiss }: { antalTrapphus: number; antalVåningar: number; antalStadare: number; harHiss: boolean }) => {
     if (antalTrapphus <= 0 || antalVåningar <= 0 || antalStadare <= 0) return null;
-
     // BRF standard: 50 m² per våning
     const standardYtaPerVåning = 50;
     const totalKvm = antalTrapphus * antalVåningar * standardYtaPerVåning;
@@ -230,7 +232,6 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
     const timpris = 300;
     const prisUtanPåslag = tid * timpris;
     const pris = prisUtanPåslag * prisPåslagFaktor(antalStadare);
-
     return {
       tid: +tid.toFixed(1), // timmar
       pris: +pris.toFixed(2), // SEK
@@ -238,12 +239,13 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
       totalKvm: +totalKvm.toFixed(0),
     };
   };
-
+  
   // Calculate job details using advanced logic
   const kapacitet = getServiceCapacity();
   
   // Use different calculation for different service types
   const isStairCleaning = serviceUnit.isStairCleaning;
+  const isOfficeCleaning = serviceUnit.isOfficeCleaning;
   const isLaundry = isLaundryService();
   
   let jobbResultat;
@@ -264,27 +266,38 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
       prisPerKvm: pricePerUnit,
     });
   } else {
+    // Use 20 kr/kvm for office cleaning, otherwise use the regular price
+    const officeCleaningPrice = isOfficeCleaning ? 20 : pricePerUnit;
     jobbResultat = beräknaStädJobb({
       kvm: monthlyVolume,
       antalStadare: professionals,
       kapacitetPerTimme: kapacitet,
-      prisPerKvm: pricePerUnit,
+      prisPerKvm: officeCleaningPrice,
+      isOfficeCleaning: isOfficeCleaning,
     });
   }
-
+  
   // Extract values for display
   const rekommenderadeTimmar = jobbResultat?.tid || 0;
   const totalPris = jobbResultat?.pris || 0;
   const prisUtanPåslag = jobbResultat?.prisUtanPåslag || 0;
   const totalKvm = (jobbResultat as any)?.totalKvm || monthlyVolume;
   const calculatedWeight = isLaundry ? calculateLaundryWeight(monthlyVolume) : 0;
-
-  // Auto-update duration when volume or professionals change
+  
+  // Auto-update professionals for office cleaning based on area and 8-hour max shift
   useEffect(() => {
-    // Duration is now calculated automatically and displayed
-    // No need to set state since it's calculated in real-time
-  }, [monthlyVolume, professionals, rekommenderadeTimmar, isLaundryService, stairHouses, floorsPerStair, hasElevator, isStairCleaning]);
-
+    if (isOfficeCleaning) {
+      // Office cleaning: 20 kr/kvm, max 8 hours per shift
+      const capacityPerCleaner = 50; // kvm/hour per cleaner
+      const maxHours = 8;
+      
+      // Calculate minimum cleaners needed to stay within 8 hours
+      const cleanersNeeded = Math.ceil(monthlyVolume / (capacityPerCleaner * maxHours));
+      
+      setProfessionals(cleanersNeeded);
+    }
+  }, [monthlyVolume, isOfficeCleaning]);
+  
   const addons: Addon[] = [
     {
       id: 'furniture-cleaning',
@@ -319,24 +332,14 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
       image: '/api/placeholder/200/150'
     }
   ];
-
-
-
+  
   const basePrice = totalPris; // Use calculated price with surcharge
   const addonPrice = selectedAddons.reduce((total, addonId) => {
     const addon = addons.find(a => a.id === addonId);
     return total + (addon ? addon.currentPrice : 0);
   }, 0);
   const totalPrice = basePrice + addonPrice;
-
-  const toggleAddon = (addonId: string) => {
-    setSelectedAddons(prev => 
-      prev.includes(addonId) 
-        ? prev.filter(id => id !== addonId)
-        : [...prev, addonId]
-    );
-  };
-
+  
   const renderStepContent = () => {
     if (step === 1) {
       return (
@@ -368,7 +371,7 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                 </div>
                 <p className="text-xs text-gray-500">Ex: 1 trapphus × 4 våningar</p>
               </div>
-
+              
               {/* Floors per Stair */}
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
@@ -391,7 +394,7 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                 </div>
                 <p className="text-xs text-gray-500">Standard: 50 m² per våning</p>
               </div>
-
+              
               {/* Elevator Question */}
               <div className="mb-4">
                 <div className="flex items-center space-x-2 mb-2">
@@ -422,7 +425,7 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                   </button>
                 </div>
               </div>
-
+              
               {/* Show Details Button */}
               <div className="mb-4">
                 <button
@@ -432,7 +435,7 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                   {showStairDetails ? 'Dölj' : 'Visa'} beräkningsdetaljer
                 </button>
               </div>
-
+              
               {/* Stair Details */}
               {showStairDetails && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
@@ -444,6 +447,99 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                   </div>
                 </div>
               )}
+            </div>
+          ) : isOfficeCleaning ? (
+            /* Office Cleaning Service Fields */
+            <div className="mb-3">
+              <h3 className="font-semibold text-gray-900 mb-2">🧾 Kontorstädning</h3>
+              
+              {/* Area Input Field */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm font-semibold text-blue-600">1️⃣ Yta att städa (kvm)</label>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-lg font-bold text-blue-600">{monthlyVolume}</span>
+                    <span className="text-xs text-blue-600">kvm</span>
+                  </div>
+                </div>
+                <div className="relative">
+                  <input
+                    type="range"
+                    min="10"
+                    max="2000"
+                    value={monthlyVolume}
+                    onChange={(e) => setMonthlyVolume(Number(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-blue"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  💡 Ange den totala städytan (kontor, kök, toaletter, mötesrum etc.) i kvadratmeter.
+                </p>
+              </div>
+              
+              {/* Date and Time Selection for Office Cleaning */}
+              <div className="mb-3">
+                <div className="flex items-center space-x-2 mb-1">
+                  <h4 className="font-semibold text-gray-900">📅 Planera din leverans</h4>
+                  <Info className="h-4 w-4 text-gray-400" />
+                </div>
+                
+                {/* Start Date Selection */}
+                <div className="mb-2">
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Välj startdatum (Ansvarig på plats vid uppstart)</label>
+                  <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
+                    <span className="font-medium text-gray-900">{startDate}</span>
+                    <button 
+                      onClick={() => setShowDatePicker(true)}
+                      className="text-blue-600 text-sm font-medium hover:text-blue-700"
+                    >
+                      Ändra
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Time Selection */}
+                <div className="mb-2">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <span className="text-lg">🕐</span>
+                    <label className="text-sm font-medium text-gray-700">Tid</label>
+                  </div>
+                  <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
+                    <span className="font-medium text-gray-900">{scheduleTime}</span>
+                    <button 
+                      onClick={() => setShowTimePicker(true)}
+                      className="text-blue-600 text-sm font-medium hover:text-blue-700"
+                    >
+                      Ändra
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Instructions Field */}
+              <div className="mb-3">
+                <div className="flex items-center space-x-2 mb-1">
+                  <h4 className="font-semibold text-gray-900">2️⃣ Instruktioner eller särskilda krav</h4>
+                  <span className="text-xs text-gray-500">(Valfritt)</span>
+                </div>
+                <div className="relative">
+                  <textarea
+                    value={specialRequirements}
+                    onChange={(e) => setSpecialRequirements(e.target.value)}
+                    placeholder="Ange instruktioner, t.ex.:
+• Nyckel finns i receptionen
+• Fokusera på kök och glasytor  
+• Ta bort fläckar på dörrar
+• Använd miljömärkta produkter"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={3}
+                    maxLength={200}
+                  />
+                  <div className="absolute bottom-2 right-2 text-xs text-gray-400">
+                    {specialRequirements.length}/200
+                  </div>
+                </div>
+              </div>
             </div>
           ) : isLaundry ? (
             /* Laundry Service Fields */
@@ -473,7 +569,6 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                   Beräknad vikt: ~{calculatedWeight} kg per vecka (2.5 kg per anställd)
                 </p>
               </div>
-
             </div>
           ) : (
             /* Regular Service Fields */
@@ -500,12 +595,11 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                   />
                 </div>
               </div>
-
             </div>
           )}
-
-          {/* Professionals Selection - Only for non-laundry services */}
-          {!isLaundryService() && (
+          
+          {/* Professionals Selection - Only for non-laundry and non-office cleaning services */}
+          {!isLaundryService() && !isOfficeCleaning && (
             <div className="mb-4">
               <div className="flex items-center space-x-2 mb-2">
                 <h3 className="font-semibold text-gray-900">Hur många städare behöver du?</h3>
@@ -529,9 +623,9 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
               </div>
             </div>
           )}
-
-          {/* Calculated Time Display - Only for non-laundry services */}
-          {!isLaundryService() && (
+          
+          {/* Calculated Time Display - Only for non-laundry and non-office cleaning services */}
+          {!isLaundryService() && !isOfficeCleaning && (
             <div className="mb-4">
               <div className="flex items-center space-x-2 mb-2">
                 <h3 className="font-semibold text-gray-900">Beräknad tid baserat på dina val</h3>
@@ -553,11 +647,9 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
               </div>
             </div>
           )}
-
-
-
-          {/* Materials - Different for laundry vs cleaning */}
-          {!isLaundryService() && (
+          
+          {/* Materials - Different for laundry vs cleaning, but not for office cleaning */}
+          {!isLaundryService() && !isOfficeCleaning && (
             <div className="mb-4">
               <div className="flex items-center space-x-2 mb-2">
                 <h3 className="font-semibold text-gray-900">Behöver du städmaterial?</h3>
@@ -588,143 +680,93 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
               </div>
             </div>
           )}
-
-          {/* Special Requirements */}
-          <div className="mb-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <h3 className="font-semibold text-gray-900">Några instruktioner eller särskilda krav?</h3>
-              <span className="text-xs text-gray-500">(Valfritt)</span>
-            </div>
-            <div className="relative">
-              <textarea
-                value={specialRequirements}
-                onChange={(e) => setSpecialRequirements(e.target.value)}
-                placeholder="Exempel: Nyckel under mattan, strykning, fönsterputs, etc."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={3}
-                maxLength={150}
-              />
-              <div className="absolute bottom-2 right-2 text-xs text-gray-400">
-                {specialRequirements.length}/150
-              </div>
-            </div>
-          </div>
-
         </>
       );
     }
-
-
-
+    
     if (step === 2) {
       return (
         <>
           {/* Bidding Interface - Only for subscriptions */}
-          {wantsSubscription && (
-            <div className="mb-6">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center space-x-2 mb-4">
-                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <span className="text-green-600 text-lg">🧽</span>
-                  </div>
-                  <h3 className="font-semibold text-gray-900">Städ förfrågan</h3>
+          <div className="mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <span className="text-green-600 text-lg">🧽</span>
                 </div>
-                <p className="text-gray-600 mb-6">Städning av lokaler och ytor</p>
+                <h3 className="font-semibold text-gray-900">Städ förfrågan</h3>
+              </div>
+              <p className="text-gray-600 mb-6">Städning av lokaler och ytor</p>
+              
+              <div className="space-y-6">
+                {/* Monthly Area Slider */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-semibold text-gray-700">Månadsyta</label>
+                    <div className="bg-blue-100 px-3 py-1 rounded-lg">
+                      <span className="text-sm font-bold text-blue-700">{monthlyVolume}</span>
+                      <span className="text-xs text-blue-600 ml-1">kvm</span>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="range"
+                      min="50"
+                      max="1000"
+                      value={monthlyVolume}
+                      onChange={(e) => setMonthlyVolume(Number(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-blue"
+                    />
+                  </div>
+                </div>
                 
-                <div className="space-y-6">
-                  {/* Monthly Area Slider */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-semibold text-gray-700">Månadsyta</label>
-                      <div className="bg-blue-100 px-3 py-1 rounded-lg">
-                        <span className="text-sm font-bold text-blue-700">{monthlyVolume}</span>
-                        <span className="text-xs text-blue-600 ml-1">kvm</span>
-                      </div>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="range"
-                        min="50"
-                        max="1000"
-                        value={monthlyVolume}
-                        onChange={(e) => setMonthlyVolume(Number(e.target.value))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-blue"
-                      />
+                {/* Price per kvm Slider */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-semibold text-gray-700">Kvmpris</label>
+                    <div className="bg-green-100 px-3 py-1 rounded-lg">
+                      <span className="text-sm font-bold text-green-700">{pricePerUnit.toFixed(2)}</span>
+                      <span className="text-xs text-green-600 ml-1">kr</span>
                     </div>
                   </div>
-
-                  {/* Price per kvm Slider */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-sm font-semibold text-gray-700">Kvmpris</label>
-                      <div className="bg-green-100 px-3 py-1 rounded-lg">
-                        <span className="text-sm font-bold text-green-700">{pricePerUnit.toFixed(2)}</span>
-                        <span className="text-xs text-green-600 ml-1">kr</span>
-                      </div>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="range"
-                        min="5"
-                        max="50"
-                        step="0.1"
-                        value={pricePerUnit}
-                        onChange={(e) => setPricePerUnit(Number(e.target.value))}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-green"
-                      />
-                    </div>
+                  <div className="relative">
+                    <input
+                      type="range"
+                      min="5"
+                      max="50"
+                      step="0.1"
+                      value={pricePerUnit}
+                      onChange={(e) => setPricePerUnit(Number(e.target.value))}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-green"
+                    />
                   </div>
-
-                  {/* Summary Boxes */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <div className="text-xs text-green-600 mb-1">Pris per kvm</div>
-                      <div className="text-lg font-bold text-green-700">{pricePerUnit.toFixed(2)} kr</div>
-                    </div>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="text-xs text-blue-600 mb-1">Månadskostnad</div>
-                      <div className="text-lg font-bold text-gray-900">{(monthlyVolume * pricePerUnit).toLocaleString()} kr</div>
-                    </div>
+                </div>
+                
+                {/* Summary Boxes */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="text-xs text-green-600 mb-1">Pris per kvm</div>
+                    <div className="text-lg font-bold text-green-700">{pricePerUnit.toFixed(2)} kr</div>
                   </div>
-
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="text-xs text-blue-600 mb-1">Månadskostnad</div>
+                    <div className="text-lg font-bold text-gray-900">{(monthlyVolume * pricePerUnit).toLocaleString()} kr</div>
+                  </div>
                 </div>
               </div>
             </div>
-          )}
-
-          {/* Important Information */}
-          <div className={`border rounded-lg p-4 mb-4 ${
-            wantsSubscription 
-              ? 'bg-yellow-50 border-yellow-200' 
-              : 'bg-blue-50 border-blue-200'
-          }`}>
+          </div>
+          
+          {/* Important Information - Only for subscriptions */}
+          <div className="border rounded-lg p-4 mb-4 bg-yellow-50 border-yellow-200">
             <div className="flex items-start space-x-3">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                wantsSubscription 
-                  ? 'bg-yellow-200' 
-                  : 'bg-blue-200'
-              }`}>
-                <span className={`text-sm font-bold ${
-                  wantsSubscription 
-                    ? 'text-yellow-700' 
-                    : 'text-blue-700'
-                }`}>i</span>
+              <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-yellow-200">
+                <span className="text-sm font-bold text-yellow-700">i</span>
               </div>
               <div>
-                <h4 className={`font-semibold mb-1 ${
-                  wantsSubscription 
-                    ? 'text-yellow-800' 
-                    : 'text-blue-800'
-                }`}>Viktigt att veta</h4>
-                <p className={`text-sm ${
-                  wantsSubscription 
-                    ? 'text-yellow-700' 
-                    : 'text-blue-700'
-                }`}>
-                  {wantsSubscription 
-                    ? 'Din förfrågan skickas till vår partner för godkännande. Du får bekräftelse så fort den granskats.'
-                    : 'Din förfrågan skickas till vår partner för godkännande.'
-                  }
+                <h4 className="font-semibold mb-1 text-yellow-800">Viktigt att veta</h4>
+                <p className="text-sm text-yellow-700">
+                  Din förfrågan skickas till vår partner för godkännande. Du får bekräftelse så fort den granskats.
                 </p>
               </div>
             </div>
@@ -732,10 +774,10 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
         </>
       );
     }
-
+    
     return null;
   };
-
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <style>{`
@@ -745,25 +787,6 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
         }
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
-        }
-        .slider-yellow::-webkit-slider-thumb {
-          appearance: none;
-          height: 20px;
-          width: 20px;
-          border-radius: 50%;
-          background: #f59e0b;
-          cursor: pointer;
-          border: 2px solid #ffffff;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .slider-yellow::-moz-range-thumb {
-          height: 20px;
-          width: 20px;
-          border-radius: 50%;
-          background: #f59e0b;
-          cursor: pointer;
-          border: 2px solid #ffffff;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .slider-blue::-webkit-slider-thumb {
           appearance: none;
@@ -804,12 +827,13 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
       `}</style>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 min-h-screen">
           {/* Left Panel - Service Configuration */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             {/* Header */}
-            <div className="flex items-center space-x-3 mb-6">
+            <div className="flex items-center space-x-3 mb-4">
               <button
                 onClick={() => {
                   if (step === 1) {
@@ -824,23 +848,20 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
               </button>
               <div>
                 <div className="text-sm text-gray-500">
-                  {isCartMode ? `Tjänst ${currentServiceIndex + 1} av ${totalServices}` : 'Tjänst 1 av 3'}
+                  {isCartMode && totalServices > 1 ? `Tjänst ${currentServiceIndex + 1} av ${totalServices}` : ''}
                 </div>
                 <h1 className="text-xl font-bold text-gray-900">
                   {step === 1 ? currentService.title : step === 2 ? 'Skapa schema' : currentService.title}
                 </h1>
               </div>
             </div>
-
             {renderStepContent()}
-
-
           </div>
-
+          
           {/* Right Panel - Booking & Payment Summary */}
-          <div className="space-y-6">
-            {/* Scheduling Section - Only in Step 1 */}
-            {step === 1 && (
+          <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
+            {/* Scheduling Section - Only in Step 1, but not for office cleaning */}
+            {step === 1 && !isOfficeCleaning && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center space-x-3 mb-4">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -851,7 +872,7 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                     <p className="text-sm text-gray-600">Planera din leverans</p>
                   </div>
                 </div>
-
+                
                 {/* Start Date Selection */}
                 <div className="mb-4">
                   <h4 className="font-semibold text-gray-900 mb-2">Välj startdatum (Ansvarig på plats vid uppstart)</h4>
@@ -865,7 +886,7 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                     </button>
                   </div>
                 </div>
-
+                
                 {/* Time Selection */}
                 <div className="mb-4">
                   <div className="flex items-center space-x-2 mb-2">
@@ -882,8 +903,8 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                     </button>
                   </div>
                 </div>
-
-                {/* Recurring Days Selection */}
+                
+                {/* Recurring Days Selection - Only for subscriptions */}
                 <div className="mb-4">
                   <h4 className="font-semibold text-gray-900 mb-3">Välj veckodagar för återkommande leverans</h4>
                   <div className="flex space-x-2">
@@ -910,8 +931,112 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                 </div>
               </div>
             )}
-
-
+            
+            {/* Office Cleaning Materials Selection - Only for office cleaning in Step 1 */}
+            {step === 1 && isOfficeCleaning && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <div className="flex items-center space-x-2 mb-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <span className="text-blue-600 text-sm">🧽</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-sm">2️⃣ Behöver du städmaterial?</h3>
+                    <p className="text-xs text-gray-600">Välj städprodukter</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setMaterials('yes')}
+                    className={`w-full p-2 rounded-lg border-2 transition-colors text-left ${
+                      materials === 'yes'
+                        ? 'border-blue-500 bg-blue-50 text-blue-600'
+                        : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-medium text-sm">Ja, ta med professionella städprodukter (+X kr)</div>
+                    <div className="text-xs text-gray-500">Professionella rengöringsprodukter inkluderade</div>
+                  </button>
+                  <button
+                    onClick={() => setMaterials('no')}
+                    className={`w-full p-2 rounded-lg border-2 transition-colors text-left ${
+                      materials === 'no'
+                        ? 'border-blue-500 bg-blue-50 text-blue-600'
+                        : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-medium text-sm">Nej, vi tillhandahåller själva</div>
+                    <div className="text-xs text-gray-500">Du har redan städprodukter på plats</div>
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Office Cleaning Summary - Only for office cleaning in Step 1 */}
+            {step === 1 && isOfficeCleaning && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <span className="text-blue-600 text-lg">📋</span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">3️⃣ Sammanfattning / Bekräftelse</h3>
+                    <p className="text-sm text-gray-600">Kontrollera dina uppgifter</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 text-sm mb-4">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Yta att städa:</span>
+                    <span className="font-medium text-gray-900">{monthlyVolume} kvm</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Antal städare:</span>
+                    <span className="font-medium text-gray-900">{professionals} städare</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Beräknad tid:</span>
+                    <span className="font-medium text-gray-900">{rekommenderadeTimmar} timmar</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Städmaterial:</span>
+                    <span className="font-medium text-gray-900">{materials === 'yes' ? 'Ja, inkluderat' : 'Nej, egen'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Datum:</span>
+                    <span className="font-medium text-gray-900">{startDate}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Tid:</span>
+                    <span className="font-medium text-gray-900">{scheduleTime}</span>
+                  </div>
+                </div>
+                
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <button
+                    onClick={() => {
+                      if (step === 2) {
+                        setShowConfirmation(true);
+                      } else {
+                        handleNextStep();
+                      }
+                    }}
+                    disabled={!isCurrentStepValid()}
+                    className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors ${
+                      isCurrentStepValid()
+                        ? 'bg-gray-900 hover:bg-gray-800 text-white'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {!isCurrentStepValid() 
+                      ? 'Fyll i alla fält för att fortsätta'
+                      : 'Nästa steg för Kontorsstädning'
+                    }
+                  </button>
+                </div>
+              </div>
+            )}
+            
             {/* Booking Details - Only for other steps */}
             {step !== 1 && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -935,7 +1060,7 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                         <span className="text-gray-600">Tid:</span>
                         <span className="text-gray-900">{scheduleTime}</span>
                       </div>
-                      {wantsSubscription && recurringDays.length > 0 && (
+                      {recurringDays.length > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Leverans:</span>
                           <div className="text-right">
@@ -988,163 +1113,21 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                 </div>
               </div>
             )}
-
-            {/* Payment Summary - Only for One-time Services */}
-            {!wantsSubscription && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Payment Summary</h3>
-                <div className="space-y-3">
-                  {isStairCleaning ? (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Timpris (BRF):</span>
-                        <span className="text-gray-900">300 kr/timme</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Arbetstid:</span>
-                        <span className="text-gray-900">{rekommenderadeTimmar} timmar</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Baspris (utan påslag):</span>
-                        <span className="text-gray-900">{prisUtanPåslag.toLocaleString()} kr</span>
-                      </div>
-                      {professionals > 1 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Påslag ({professionals} städare):</span>
-                          <span className="text-gray-900">+{((prisPåslagFaktor(professionals) - 1) * 100).toFixed(0)}%</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Pris med påslag:</span>
-                        <span className="text-gray-900">{basePrice.toLocaleString()} kr</span>
-                      </div>
-                    </>
-                  ) : isLaundry ? (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Vikt per vecka:</span>
-                        <span className="text-gray-900">{calculatedWeight} kg</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Pris per kg:</span>
-                        <span className="text-gray-900">{pricePerUnit} kr</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Baspris (utan påslag):</span>
-                        <span className="text-gray-900">{prisUtanPåslag.toLocaleString()} kr</span>
-                      </div>
-                      {professionals > 1 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Påslag ({professionals} städare):</span>
-                          <span className="text-gray-900">+{((prisPåslagFaktor(professionals) - 1) * 100).toFixed(0)}%</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Pris med påslag:</span>
-                        <span className="text-gray-900">{basePrice.toLocaleString()} kr</span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Baspris (utan påslag):</span>
-                        <span className="text-gray-900">{prisUtanPåslag.toLocaleString()} kr</span>
-                      </div>
-                      {professionals > 1 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Påslag ({professionals} städare):</span>
-                          <span className="text-gray-900">+{((prisPåslagFaktor(professionals) - 1) * 100).toFixed(0)}%</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Pris med påslag:</span>
-                        <span className="text-gray-900">{basePrice.toLocaleString()} kr</span>
-                      </div>
-                    </>
-                  )}
-                  <div className="border-t border-gray-200 pt-3">
-                    <div className="flex justify-between font-semibold text-lg">
-                      <span>Total:</span>
-                      <span>{totalPrice.toLocaleString()} kr</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
+            
             {/* Next Button */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                {isCartMode && currentServiceIndex < totalServices - 1 ? (
-                  <div className="space-y-3">
-                    {step < 4 && !(wantsSubscription && step === 2) ? (
-                      <button
-                        onClick={handleNextStep}
-                        disabled={!isCurrentStepValid()}
-                        className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors ${
-                          isCurrentStepValid()
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
-                      >
-                        {isCurrentStepValid() 
-                          ? `Nästa steg för ${currentService.title}` 
-                          : 'Fyll i alla fält för att fortsätta'
-                        }
-                      </button>
-                    ) : step === 2 && wantsSubscription ? (
-                      <button 
-                        onClick={() => {
-                          if (isCartMode && currentServiceIndex < totalServices - 1) {
-                            handleNextService();
-                          } else {
-                            handleNextStep();
-                          }
-                        }}
-                        className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center space-x-2 hover:from-orange-600 hover:to-red-600 transition-all duration-200"
-                      >
-                        <span className="text-xl">🔥</span>
-                        <span>Tick tack – Lägg ditt bud!</span>
-                      </button>
-                    ) : (
-                    <div className="space-y-3">
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                            <span className="text-green-600 text-sm font-bold">✓</span>
-                          </div>
-                          <span className="text-sm font-medium text-green-800">Tjänst konfigurerad!</span>
-                        </div>
-                        <p className="text-xs text-green-700">
-                          Denna tjänst är klar. Gå vidare till nästa tjänst med navigationsknapparna ovan.
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleNextService}
-                        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                      >
-                        Gå vidare till nästa tjänst →
-                      </button>
-                    </div>
-                  )}
+              {isCartMode && currentServiceIndex < totalServices - 1 ? (
+                <div className="space-y-3">
+                  <button
+                    onClick={handleNextService}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg font-semibold transition-colors"
+                  >
+                    Nästa tjänst
+                  </button>
                 </div>
               ) : isCartMode && currentServiceIndex === totalServices - 1 ? (
                 <div className="space-y-3">
-                  {step < 4 && !(wantsSubscription && step === 2) ? (
-                    <button
-                      onClick={handleNextStep}
-                      disabled={!isCurrentStepValid()}
-                      className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors ${
-                        isCurrentStepValid()
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      }`}
-                    >
-                      {isCurrentStepValid() 
-                        ? `Nästa steg för ${currentService.title}` 
-                        : 'Fyll i alla fält för att fortsätta'
-                      }
-                    </button>
-                  ) : step === 2 && wantsSubscription ? (
+                  {step === 2 ? (
                     <button 
                       onClick={() => {
                         if (isCartMode && currentServiceIndex < totalServices - 1) {
@@ -1159,25 +1142,12 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                       <span>Tick tack – Lägg ditt bud!</span>
                     </button>
                   ) : (
-                    <div className="space-y-3">
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                            <span className="text-green-600 text-sm font-bold">🎉</span>
-                          </div>
-                          <span className="text-sm font-medium text-green-800">Alla tjänster konfigurerade!</span>
-                        </div>
-                        <p className="text-xs text-green-700">
-                          Du har nu konfigurerat alla {totalServices} tjänster. Klicka nedan för att skicka in hela förfrågan.
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setShowConfirmation(true)}
-                        className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-                      >
-                        Skicka alla tjänster ({totalServices} st) 🚀
-                      </button>
-                    </div>
+                    <button
+                      onClick={handleNextStep}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg font-semibold transition-colors"
+                    >
+                      Nästa steg
+                    </button>
                   )}
                 </div>
               ) : (
@@ -1192,183 +1162,248 @@ export default function BookingPage({ service, cart, onBack, isSubscription }: B
                   disabled={!isCurrentStepValid()}
                   className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors ${
                     isCurrentStepValid()
-                      ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                      ? step === 2 
+                        ? 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white'
+                        : 'bg-yellow-500 hover:bg-yellow-600 text-white'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }`}
                 >
                   {!isCurrentStepValid() 
                     ? 'Fyll i alla fält för att fortsätta'
                     : step === 2 
-                      ? 'Skicka förfrågan' 
+                      ? 'Tick tack – Lägg ditt bud!' 
                       : 'Nästa'
                   }
                 </button>
               )}
             </div>
-
           </div>
         </div>
-      </div>
-
-      {/* Date Picker Modal */}
-      {showDatePicker && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Välj startdatum</h2>
-              <button
-                onClick={() => setShowDatePicker(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-7 gap-2 mb-4">
-                {['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'].map((day) => (
-                  <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
-                    {day}
-                  </div>
-                ))}
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                  <button
-                    key={day}
-                    onClick={() => {
-                      setStartDate(`${day} okt`);
-                      setShowDatePicker(false);
-                    }}
-                    className="p-2 text-center text-sm hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
-                  >
-                    {day}
-                  </button>
-                ))}
-              </div>
-              
-              <div className="flex space-x-2">
+        
+        {/* Date Picker Modal */}
+        {showDatePicker && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900">Välj startdatum</h2>
                 <button
                   onClick={() => setShowDatePicker(false)}
-                  className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  Avbryt
+                  <X className="h-5 w-5" />
                 </button>
-                <button
-                  onClick={() => setShowDatePicker(false)}
-                  className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Bekräfta
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Time Picker Modal */}
-      {showTimePicker && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Välj tid</h2>
-              <button
-                onClick={() => setShowTimePicker(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  '08:00-10:00',
-                  '10:00-12:00',
-                  '12:00-14:00',
-                  '14:00-16:00',
-                  '15:00-17:00',
-                  '16:00-18:00',
-                  '18:00-20:00',
-                  '20:00-22:00'
-                ].map((time) => (
-                  <button
-                    key={time}
-                    onClick={() => {
-                      setScheduleTime(time);
-                      setShowTimePicker(false);
-                    }}
-                    className={`p-3 text-center text-sm rounded-lg border-2 transition-colors ${
-                      scheduleTime === time
-                        ? 'border-blue-500 bg-blue-50 text-blue-600'
-                        : 'border-gray-300 text-gray-600 hover:border-gray-400'
-                    }`}
-                  >
-                    {time}
-                  </button>
-                ))}
               </div>
               
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setShowTimePicker(false)}
-                  className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Avbryt
-                </button>
-                <button
-                  onClick={() => setShowTimePicker(false)}
-                  className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Bekräfta
-                </button>
+              <div className="space-y-4">
+                {/* Month Navigation */}
+                <div className="flex items-center justify-between mb-4">
+                  <button
+                    onClick={() => {
+                      const newMonth = selectedMonth - 1;
+                      if (newMonth < 0) {
+                        setSelectedMonth(11);
+                        setSelectedYear(selectedYear - 1);
+                      } else {
+                        setSelectedMonth(newMonth);
+                      }
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ArrowLeft className="h-4 w-4 text-gray-600" />
+                  </button>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {new Date(selectedYear, selectedMonth).toLocaleDateString('sv-SE', { month: 'long', year: 'numeric' })}
+                  </h3>
+                  <button
+                    onClick={() => {
+                      const newMonth = selectedMonth + 1;
+                      if (newMonth > 11) {
+                        setSelectedMonth(0);
+                        setSelectedYear(selectedYear + 1);
+                      } else {
+                        setSelectedMonth(newMonth);
+                      }
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ArrowLeft className="h-4 w-4 text-gray-600 rotate-180" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-7 gap-2 mb-4">
+                  {['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'].map((day) => (
+                    <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
+                      {day}
+                    </div>
+                  ))}
+                  {(() => {
+                    const currentDate = new Date();
+                    const currentMonth = currentDate.getMonth();
+                    const currentYear = currentDate.getFullYear();
+                    const currentDay = currentDate.getDate();
+                    
+                    // Get days in the selected month
+                    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+                    const firstDayOfMonth = new Date(selectedYear, selectedMonth, 1).getDay();
+                    const adjustedFirstDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1; // Adjust for Monday start
+                    
+                    const days = [];
+                    
+                    // Add empty cells for days before the first day of the month
+                    for (let i = 0; i < adjustedFirstDay; i++) {
+                      days.push(<div key={`empty-${i}`} className="p-2"></div>);
+                    }
+                    
+                    // Add days of the month
+                    for (let day = 1; day <= daysInMonth; day++) {
+                      const isPastDate = selectedYear < currentYear || 
+                                       (selectedYear === currentYear && selectedMonth < currentMonth) ||
+                                       (selectedYear === currentYear && selectedMonth === currentMonth && day < currentDay);
+                      
+                      days.push(
+                        <button
+                          key={day}
+                          onClick={() => {
+                            const monthNames = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+                            setStartDate(`${day} ${monthNames[selectedMonth]}`);
+                            setShowDatePicker(false);
+                          }}
+                          disabled={isPastDate}
+                          className={`p-2 text-center text-sm rounded-lg transition-colors ${
+                            isPastDate 
+                              ? 'text-gray-300 cursor-not-allowed' 
+                              : 'hover:bg-blue-50 hover:text-blue-600'
+                          }`}
+                        >
+                          {day}
+                        </button>
+                      );
+                    }
+                    
+                    return days;
+                  })()}
+                </div>
+                
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setShowDatePicker(false)}
+                    className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Avbryt
+                  </button>
+                  <button
+                    onClick={() => setShowDatePicker(false)}
+                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Bekräfta
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Confirmation Modal */}
-      {showConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 text-center">
-            {/* Success Icon */}
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+        )}
+        
+        {/* Time Picker Modal */}
+        {showTimePicker && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900">Välj tid</h2>
+                <button
+                  onClick={() => setShowTimePicker(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    '08:00-10:00',
+                    '10:00-12:00',
+                    '12:00-14:00',
+                    '14:00-16:00',
+                    '15:00-17:00',
+                    '16:00-18:00',
+                    '18:00-20:00',
+                    '20:00-22:00'
+                  ].map((time) => (
+                    <button
+                      key={time}
+                      onClick={() => {
+                        setScheduleTime(time);
+                        setShowTimePicker(false);
+                      }}
+                      className={`p-3 text-center text-sm rounded-lg border-2 transition-colors ${
+                        scheduleTime === time
+                          ? 'border-blue-500 bg-blue-50 text-blue-600'
+                          : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                      }`}
+                    >
+                      {time}
+                    </button>
+                  ))}
+                </div>
+                
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setShowTimePicker(false)}
+                    className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Avbryt
+                  </button>
+                  <button
+                    onClick={() => setShowTimePicker(false)}
+                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Bekräfta
+                  </button>
+                </div>
+              </div>
             </div>
-
-            {/* Main Heading */}
-            <h2 className="text-xl font-bold text-gray-900 mb-3">
-              Tack för din förfrågan!
-            </h2>
-
-            {/* Body Text */}
-            <p className="text-gray-700 mb-4">
-              Vi återkommer till dig inom kort med din skräddarsydda offert.
-            </p>
-
-            {/* Email Confirmation Notice */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-6">
-              <div className="flex items-center justify-center space-x-2">
-                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </div>
+        )}
+        
+        {/* Confirmation Modal */}
+        {showConfirmation && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 text-center">
+              {/* Success Icon */}
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span className="text-sm text-gray-700">
-                  Du får en bekräftelse via e-post inom några minuter
-                </span>
               </div>
+              {/* Main Heading */}
+              <h2 className="text-xl font-bold text-gray-900 mb-3">
+                Tack för din förfrågan!
+              </h2>
+              {/* Body Text */}
+              <p className="text-gray-700 mb-4">
+                Vi återkommer till dig inom kort med din skräddarsydda offert.
+              </p>
+              {/* Email Confirmation Notice */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-6">
+                <div className="flex items-center justify-center space-x-2">
+                  <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-sm text-gray-700">
+                    Du får en bekräftelse via e-post inom några minuter
+                  </span>
+                </div>
+              </div>
+              {/* Close Button */}
+              <button
+                onClick={() => setShowConfirmation(false)}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+              >
+                Stäng
+              </button>
             </div>
-
-            {/* Close Button */}
-            <button
-              onClick={() => setShowConfirmation(false)}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-            >
-              Stäng
-            </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

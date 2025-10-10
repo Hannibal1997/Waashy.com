@@ -5,7 +5,8 @@ import {
   Shield, X, ShoppingCart, 
   Trash2, ArrowRight, ArrowLeft
 } from 'lucide-react';
-import BookingPage from './BookingPage';
+import OneTimeBookingPage from './OneTimeBookingPage';
+import SubscriptionBookingPage from './SubscriptionBookingPage';
 
 interface Service {
   id: string;
@@ -445,11 +446,15 @@ export default function ServicesPage({ cart, setCart, showCart, setShowCart }: S
 
 
   if (showBooking && selectedService) {
-    return <BookingPage service={selectedService} onBack={() => setShowBooking(false)} isSubscription={isSubscription} />;
+    return isSubscription 
+      ? <SubscriptionBookingPage service={selectedService} onBack={() => setShowBooking(false)} />
+      : <OneTimeBookingPage service={selectedService} onBack={() => setShowBooking(false)} />;
   }
 
   if (showBooking && cart.length > 0) {
-    return <BookingPage cart={cart} onBack={() => setShowBooking(false)} isSubscription={isSubscription} />;
+    return isSubscription 
+      ? <SubscriptionBookingPage cart={cart} onBack={() => setShowBooking(false)} />
+      : <OneTimeBookingPage cart={cart} onBack={() => setShowBooking(false)} />;
   }
 
   return (
