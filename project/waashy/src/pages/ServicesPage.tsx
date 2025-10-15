@@ -96,7 +96,7 @@ export default function ServicesPage({ cart, setCart, showCart, setShowCart }: S
         },
         {
           id: 'upholstery-cleaning',
-          title: 'Möbelrengöring',
+          title: 'Soffrengöring',
           description: 'Djupkemrengöring av möbler och textiler',
           icon: <Sofa className="h-6 w-6" />,
           examples: ['Soffor', 'Stolar', 'Kuddar', 'Textilier'],
